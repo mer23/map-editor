@@ -5,9 +5,8 @@ class Tile(object):
 
 	Attributes: map, x, y, surface, entity."""
 
-	def __init__(self, worldmap, x= 0, y= 0, surface= None, entity= None, blocked= False, jump_over= False):
+	def __init__(self, x= 0, y= 0, surface= None, entity= None, blocked= False, jump_over= False):
 
-		self.map= worldmap
 		self.x= x
 		self.y= y
 		self.surface= surface
