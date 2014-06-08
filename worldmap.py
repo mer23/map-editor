@@ -2,18 +2,20 @@
 
 class Map(object):
 
-	"""Represents a map in the world.
+    """Represents a map in the world.
 
 
-	Attributes: id, name, size, tiles"""
+    Attributes: id, desc, size, width, height, tiles"""
 
-	def __init__(self, map_id, name, size=(0,0), tiles= []):
-		self.id= map_id
-		self.name= name
-		self.size= size
-		self.tiles= tiles
+    def __init__(self, map_id, desc, size=(0,0), tiles= []):
+        self.id= map_id
+        self.desc= desc
+        self.size= size
+        self.width= size[0]
+        self.height= size[1]
+        self.tiles= tiles
 
 
-	def __str__(self):
-		return "id: " + str(self.id) + " || name: " + self.name
+    def __str__(self):
+        return "id: " + str(self.id) + " || desc: " + self.name
 

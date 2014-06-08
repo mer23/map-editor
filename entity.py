@@ -1,51 +1,14 @@
-from abc import ABCMeta, abstractmethod
+from pygame.sprite import Sprite
 
-class Entity(object):
+class Character(Sprite):
 
-	__metaclass__ = ABCMeta
+	def __init__(self, image= None, heading= Entity.SOUTH):
 
-	NORTH= 1
-	WEST= 2
-	SOUTH= 3
-	EAST= 4
-
-	str_cardinals= ["no", "north", "west", "south", "east"]
-
-	def __init__(self, sprite= 0, jump_over= ()):
-		self.sprite= sprite
-		self.jump_over= jump_over
-
-	@abstractmethod
-	def abstr(self):
-		pass
-
-	def __str__(self):
-
-		jump= ""
-		if self.jump_over: 
-			jump= "can be jumped over from: "
-			for cardinal in self.jump_over:
-				jump += Entity.str_cardinals[cardinal]+ " " #wtf
-		else: jump= "can be jumped over: NO"
-
-		return "id: " + str(self.sprite) + "\n" + jump + "\n"
-
-
-
-#############################################################################################
-
-
-
-class Character(Entity):
-
-
-	def __init__(self, sprite= 0, jump_over= (), heading= Entity.SOUTH):
-
+		pygame.sprite.Sprite.__init__(self)
+		self.image= image
 		self.heading= heading
-		super(Character, self).__init__(sprite, jump_over)
 
-	def abstr(self):
-		pass
+
 
 	def move(self, heading):
 		pass
@@ -60,7 +23,9 @@ class Character(Entity):
 
 
 
-class Item(Entity):
+class Item(Sprite):
 
-	def abstr(self):
-		pass
+	def __init__(self, image= None):
+
+		pygame.sprite.Sprite.__init__(self)
+		self.image= image

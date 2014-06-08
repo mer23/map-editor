@@ -1,155 +1,282 @@
-import sys, os, pygame, ConfigParser
+
+import sys
+import os
+import ConfigParser
+import pygame
 from worldmap import Map
 from tile import Tile
+
 pygame.init()
 
-Wi= 0
-He= 1
-SURFACE= True
-ITEM= False
+Wi, X= 0, 0
+He, Y= 1, 1
+AVAILABLE= 0
 
-FILE_EXTENSION= ".png"
-IMAGE_PATH= "graphics_indexer/"
-
-VISION_RANGE_SIZE= 672, 672
-LOADED_SURFACES_CHART_SIZE= 256, 640
-LOADED_SURFACES_HEADER_SIZE= 256, 32
-LOADED_ITEMS_CHART_SIZE= 256, 640
-LOADED_ITEMS_HEADER_SIZE= 256, 32
-
-DIVISION_LINE_THICKNESS= 4
-
-DISPLAY_SIZE= (VISION_RANGE_SIZE[Wi] + LOADED_SURFACES_CHART_SIZE[Wi] + LOADED_ITEMS_CHART_SIZE[Wi] + 2*DIVISION_LINE_THICKNESS) , 672
-
-DEFAULT_TILE_SIZE= 32
 BACKGROUND_COLOR= 0, 0, 0
 LINE_COLOR= 35, 35, 35
 GRID_COLOR= 255, 255, 0
 
+#### TODO set up all this propperly ####
+IMG_FILE_EXT= ".png"
+MAP_FILE_EXT= ".txt"
+IMAGES_PATH= ""
+MAP_FILES_PATH= ""
+########################################
+
+DEFAULT_TILE_SIZE= 32
+DISPLAY_HEIGHT= 672
+VISION_RANGE_SIZE= 672, DISPLAY_HEIGHT
+SURFACES_HEADER_SIZE= 256, 32
+ITEMS_HEADER_SIZE= 256, 32
+SURFACES_BOX_SIZE= SURFACES_HEADER_SIZE[Wi], DISPLAY_HEIGHT - SURFACES_HEADER_SIZE[He]
+ITEMS_BOX_SIZE= ITEMS_HEADER_SIZE[Wi], DISPLAY_HEIGHT - ITEMS_HEADER_SIZE[He]
+
+DIV_LINE_THICKNESS= 4
+
+DISPLAY_SIZE= ( #display width results from all components' widths added
+                (VISION_RANGE_SIZE[Wi] + SURFACES_BOX_SIZE[Wi] + 
+                ITEMS_BOX_SIZE[Wi] + 2*DIV_LINE_THICKNESS) , 
+
+                DISPLAY_HEIGHT)
+
+if not (
+        DEFAULT_TILE_SIZE > 0 and 
+        DEFAULT_TILE_SIZE % 1 == 0 and #must be integer
+        DISPLAY_HEIGHT > 0 and 
+        VISION_RANGE_SIZE[Wi] > 0 and 
+        SURFACES_HEADER_SIZE[Wi] > 0 and 
+        SURFACES_HEADER_SIZE[He] > 0 and 
+        ITEMS_HEADER_SIZE[Wi] > 0 and 
+        ITEMS_HEADER_SIZE[He] > 0 
+        ): 
+            raise ValueError("Dimensions must be positive integers!")
+
+if not (   
+        DISPLAY_HEIGHT % DEFAULT_TILE_SIZE == 0 and 
+        VISION_RANGE_SIZE[Wi] % DEFAULT_TILE_SIZE == 0 and 
+        SURFACES_HEADER_SIZE[Wi] % DEFAULT_TILE_SIZE == 0 and 
+        SURFACES_HEADER_SIZE[He] % DEFAULT_TILE_SIZE == 0 and 
+        ITEMS_HEADER_SIZE[Wi] % DEFAULT_TILE_SIZE == 0 and 
+        ITEMS_HEADER_SIZE[He] % DEFAULT_TILE_SIZE == 0 
+        ): 
+            raise ValueError("All dimensions must be multiples of " + 
+                            str(DEFAULT_TILE_SIZE) + ".")
+
+
 loaded_surfaces= []
-#array of boolean values used to accommodate sprites at the loaded_surfaces chart
-loaded_surfaces_chart_tiles= [False] * (LOADED_SURFACES_CHART_SIZE[Wi] / DEFAULT_TILE_SIZE * LOADED_SURFACES_CHART_SIZE[He] / DEFAULT_TILE_SIZE)
 loaded_items= []
-#array of boolean values used to accommodate sprites at the loaded_items chart
-loaded_items_chart_tiles= [False] * (LOADED_ITEMS_CHART_SIZE[Wi] / DEFAULT_TILE_SIZE * LOADED_ITEMS_CHART_SIZE[He] / DEFAULT_TILE_SIZE)
+
+#arrays of int values to indicate which sprite occupies a specific tile in a box
+loaded_surfaces_box_tiles= [0] * (
+                                    SURFACES_BOX_SIZE[Wi] / DEFAULT_TILE_SIZE * 
+                                    SURFACES_BOX_SIZE[He] / DEFAULT_TILE_SIZE)
+
+loaded_items_box_tiles= [0] * (
+                                    ITEMS_BOX_SIZE[Wi] / DEFAULT_TILE_SIZE * 
+                                    ITEMS_BOX_SIZE[He] / DEFAULT_TILE_SIZE
+                                    )
 highlighted_img= None
 vision_range= 0, 0
 editing_new_map= False
 
-#rectangles for every component of GUI
+########################    rectangles for every component of GUI    ###########################
+
 vision_range_rect= pygame.Rect(0, 0, VISION_RANGE_SIZE[Wi], VISION_RANGE_SIZE[He])
-loaded_surfaces_rect= pygame.Rect(VISION_RANGE_SIZE[Wi] + DIVISION_LINE_THICKNESS, LOADED_SURFACES_HEADER_SIZE[He] , LOADED_SURFACES_CHART_SIZE[Wi], LOADED_SURFACES_CHART_SIZE[He])
-loaded_items_rect= pygame.Rect(VISION_RANGE_SIZE[Wi] + 2*DIVISION_LINE_THICKNESS + LOADED_SURFACES_CHART_SIZE[Wi], LOADED_ITEMS_HEADER_SIZE[He], LOADED_ITEMS_CHART_SIZE[Wi], LOADED_ITEMS_CHART_SIZE[He])
-loaded_header_rect= pygame.Rect (VISION_RANGE_SIZE[Wi] + DIVISION_LINE_THICKNESS, 0, LOADED_SURFACES_HEADER_SIZE[Wi] + LOADED_ITEMS_CHART_SIZE[Wi] + DIVISION_LINE_THICKNESS, LOADED_SURFACES_HEADER_SIZE[1])
+
+surfaces_rect= pygame.Rect(
+                            VISION_RANGE_SIZE[Wi] + DIV_LINE_THICKNESS, 
+                            SURFACES_HEADER_SIZE[He] , 
+                            SURFACES_BOX_SIZE[Wi], 
+                            SURFACES_BOX_SIZE[He]
+                            )
+
+items_rect= pygame.Rect(
+                            VISION_RANGE_SIZE[Wi] + 2*DIV_LINE_THICKNESS + SURFACES_BOX_SIZE[Wi],
+                            ITEMS_HEADER_SIZE[He], 
+                            ITEMS_BOX_SIZE[Wi], 
+                            ITEMS_BOX_SIZE[He]
+                            )
+
+header_rect= pygame.Rect (
+                            VISION_RANGE_SIZE[Wi] + DIV_LINE_THICKNESS, 
+                            0, 
+                            SURFACES_HEADER_SIZE[Wi] + ITEMS_BOX_SIZE[Wi] + DIV_LINE_THICKNESS,
+                            SURFACES_HEADER_SIZE[1]
+                            )
+
+################################################################################################
+
+def load_sprites(img_list, box):
+    for image in img_list:
+        load_sprite(image, box)
 
 
+def load_sprite(sprite, box):
+    try:
+        box.append(pygame.image.load(IMAGES_PATH + sprite + IMG_FILE_EXT))
+        print "Surface " + sprite + " successfully loaded."
+
+    except pygame.error:
+        print ( "Sprite " + sprite + " could not be loaded. "
+                "\nMake sure that file exists in " + IMAGES_PATH + " directory." )
 
 
-def load_sprites(img_list, surfaces): # surfaces will be true to load surfaces and false to load items
-	if surfaces:
-		global loaded_surfaces
+def pos_from_index(index, size):
+    size= size[Wi] / DEFAULT_TILE_SIZE , size[He] / DEFAULT_TILE_SIZE
+    if index < size[Wi] * size[He]:
+        x= index%size[Wi]
+        y= index/size[Wi]
+        return (x, y)
+    else: print "Index is out of this box's boundaries."
 
-		for image in img_list:
-			load_surface(image)
+def next_available_tile(starting_pos, box):
+    for tile in range(starting_pos, box):
+        if box(tile) == AVAILABLE:
+            return tile
 
-	else: # we're trying to load images
-		global loaded_items
+    print "There's not enough room to place another sprite in the box."
+    return -1
 
-		for image in range (len(img_list)):
-			load_item(image)
-
-
-def load_surface(sprite):
-	try:
-		loaded_surfaces.append(pygame.image.load(IMAGE_PATH + sprite + FILE_EXTENSION))
-		print "Surface " + sprite + " successfully loaded."
-
-	except pygame.error:
-		print "Surface " + sprite + " could not be loaded. \nMake sure that file exists in " + IMAGE_PATH + " directory."
-
-def load_item(sprite): 
-	try:
-		loaded_items.append(pygame.image.load(IMAGE_PATH + sprite + FILE_EXTENSION))
-		print "Item " + sprite + " successfully loaded."
-
-	except pygame.error:
-		print "Item " + sprite + " could not be loaded. \nMake sure that file exists in " + IMAGE_PATH + " directory."
+def sprite_from_img_id(img_id, loaded_sprites):
+    if is_positive_int(img_id):
+        for sprite in loaded_sprites:
+            pass
+            
 
 
-#def 
+def find_room(sprite, box):
+    img_size= (sprite.get_rect().width / DEFAULT_TILE_SIZE , 
+                sprite.get_rect.height / DEFAULT_TILE_SIZE)
+    av_tile= 0
+    while av_tile < len(box):
+            av_tile= pos_from_index(next_available_tile(loaded_surfaces_box_tiles), SURFACES_BOX_SIZE) # TODO hardcoded
+            if av_tile < 0: return # in case there's no space.
+
+           # if av_tile + img_size[Wi] >
+
+            for tile in range(av_tile, size[Wi]):
+                pass
 
 
 
 
 def window(surface, message= "", options= ()):
-	pass
+    pass
 
-
-def is_valid_sprite_name(string):
-	try:
-		return int(string) and int(string) > 0
-	except ValueError:
-		return False
+#used to validate filenames for maps and images.
+def is_positive_int(name):
+    try:
+        return int(name) and int(name) > 0
+    except ValueError:
+        return False
 
 
 
 def draw_grid(surface):
 
-	draw_pos= DEFAULT_TILE_SIZE
-	while draw_pos < VISION_RANGE_SIZE[Wi]:
-		pygame.draw.line(surface, GRID_COLOR, (draw_pos, 0), (draw_pos, VISION_RANGE_SIZE[He]))
-		draw_pos += 32
+    draw_pos= DEFAULT_TILE_SIZE
+    while draw_pos < VISION_RANGE_SIZE[Wi]:
+        pygame.draw.line(surface, GRID_COLOR, (draw_pos, 0), (draw_pos, VISION_RANGE_SIZE[He]))
+        draw_pos += 32
 
-	draw_pos= DEFAULT_TILE_SIZE
-	while draw_pos < VISION_RANGE_SIZE[He]:
-		pygame.draw.line(surface, GRID_COLOR, (0, draw_pos), (VISION_RANGE_SIZE[Wi], draw_pos))
-		draw_pos += 32
+    draw_pos= DEFAULT_TILE_SIZE
+    while draw_pos < VISION_RANGE_SIZE[He]:
+        pygame.draw.line(surface, GRID_COLOR, (0, draw_pos), (VISION_RANGE_SIZE[Wi], draw_pos))
+        draw_pos += 32
 
 
 def tile_from_click(pos):
-	pass
+    pass
 
 font= pygame.font.Font(None, 38)
 
 while True:
 
-	if editing_new_map:
-		for event in pygame.event.get():
-			if event.type == pygame.QUIT or (event.type == pygame.KEYUP and event.key == pygame.K_ESCAPE):
-				sys.exit()
+    if editing_new_map:
+        for event in pygame.event.get():
 
-			if event.type == pygame.MOUSEBUTTONUP:
-				pass 
+            if (event.type == pygame.QUIT or 
+                (event.type == pygame.KEYUP and event.key == pygame.K_ESCAPE)):
+                sys.exit()
 
-			if event.type == pygame.KEYUP and event.key == pygame.K_l: #to load sprites
-				sprites_to_load= raw_input("Enter sprite numbers separated by spaces: ")
-				sprites_list= sprites_to_load.split()
+            if event.type == pygame.MOUSEBUTTONUP:
+                pass 
 
-				all_valid= True
-				for sprite in sprites_list:
-					if not is_valid_sprite_name(sprite):
-						print "One or more of the characters you entered are not spaces or positive integers."
-						all_valid= False
-						break
+            if event.type == pygame.KEYUP and event.key == pygame.K_l: #to load sprites
+                sprites_to_load= raw_input("Enter sprite numbers separated by spaces: ")
+                sprites_list= sprites_to_load.split()
 
-				if all_valid: load_sprites(sprites_list, SURFACE)
-				print loaded_surfaces
+                all_valid= True
+                for sprite in sprites_list:
+                    if not is_positive_int(sprite):
+                        print ("One or more of the characters you entered"
+                                " are not positive integers or spaces.")
+                        all_valid= False
+                        break
 
-	else:
-		worldmap= Map(1, "test", (100, 100))
+                if all_valid: load_sprites(sprites_list, loaded_surfaces) #FIXME hardcoded
 
-		for pos_x in range (worldmap.size[Wi]):
-			for pos_y in range (worldmap.size[He]):
-				worldmap.tiles.append(Tile(worldmap.id, pos_x, pos_y))
+    else:
+        desc= raw_input("Enter a brief description for the new map: ")
 
-		screen = pygame.display.set_mode(DISPLAY_SIZE)
-		screen.fill(BACKGROUND_COLOR)
-		pygame.draw.line(screen, LINE_COLOR, (VISION_RANGE_SIZE[Wi] + DIVISION_LINE_THICKNESS/2 , 0), (VISION_RANGE_SIZE[Wi]  + DIVISION_LINE_THICKNESS/2, VISION_RANGE_SIZE[He]), DIVISION_LINE_THICKNESS)
+        while True: # loop for map id
+            map_id= raw_input("Enter a positive integer to be this map's id and filename: ")
 
-		draw_point_x= VISION_RANGE_SIZE[Wi] + DIVISION_LINE_THICKNESS + LOADED_SURFACES_CHART_SIZE[Wi]
-		pygame.draw.line(screen, LINE_COLOR, (draw_point_x  + DIVISION_LINE_THICKNESS/2 , 0), (draw_point_x  + DIVISION_LINE_THICKNESS/2 , DISPLAY_SIZE[He]), DIVISION_LINE_THICKNESS)
-		screen.fill(LINE_COLOR, loaded_header_rect)
-		screen.blit(font.render("        SURFACES                    ITEMS", True, (255, 255, 255)), loaded_header_rect) # this shitty method doesn't understand tabs so I used spaces :S
-		draw_grid(screen)
-		pygame.display.flip()
-		editing_new_map= True
+            if is_positive_int(map_id):
+
+                if not os.path.exists(MAP_FILES_PATH + map_id + MAP_FILE_EXT):
+                    break
+                else: 
+                    print "A map named " + map_id + MAP_FILE_EXT + " already exists!"
+
+            else: print "Map id must be a positive integer!"
+
+        while True:
+            size= raw_input("Enter this map's width and height, separated by a space: ")
+            size_list= size.split()
+
+            if (len(size_list) == 2 and
+                is_positive_int(size_list[0]) and
+                is_positive_int(size_list[1])
+                ):
+                size = int(size_list[0]) , int(size_list[1])
+                break
+            else:
+                print "Both width and height must be positive integers separated by a space!"
+
+        worldmap= Map(map_id, desc, size)
+
+        for pos_x in range (worldmap.size[Wi]):
+            for pos_y in range (worldmap.size[He]):
+                worldmap.tiles.append(Tile(worldmap.id, pos_x, pos_y))
+
+        screen = pygame.display.set_mode(DISPLAY_SIZE)
+        screen.fill(BACKGROUND_COLOR)
+
+        pygame.draw.line(
+                        screen,
+                        LINE_COLOR,
+                        (VISION_RANGE_SIZE[Wi] + DIV_LINE_THICKNESS/2 , 0),
+                        (VISION_RANGE_SIZE[Wi]  + DIV_LINE_THICKNESS/2, VISION_RANGE_SIZE[He]),
+                        DIV_LINE_THICKNESS)
+
+        line_x_coord= VISION_RANGE_SIZE[Wi] + DIV_LINE_THICKNESS + SURFACES_BOX_SIZE[Wi]
+        # had to predefine line_x_coord for statement below not to be 250 characters long.
+        pygame.draw.line(
+                        screen,
+                        LINE_COLOR,
+                        (line_x_coord  + DIV_LINE_THICKNESS/2 , 0),
+                        (line_x_coord  + DIV_LINE_THICKNESS/2 , DISPLAY_SIZE[He]),
+                        DIV_LINE_THICKNESS)
+
+        screen.fill(LINE_COLOR, header_rect)
+        screen.blit(
+                    font.render(
+                                "        SURFACES                    ITEMS",
+                                True,
+                                (255, 255, 255)),
+                    header_rect)
+
+        draw_grid(screen)
+        pygame.display.flip()
+        editing_new_map= True
