@@ -39,28 +39,21 @@ DISPLAY_SIZE= ( #display width results from all components' widths added
 
                 DISPLAY_HEIGHT)
 
-if not (
-        DEFAULT_TILE_SIZE > 0 and 
-        DEFAULT_TILE_SIZE % 1 == 0 and #must be integer
-        DISPLAY_HEIGHT > 0 and 
-        VISION_RANGE_SIZE[Wi] > 0 and 
-        SURFACES_HEADER_SIZE[Wi] > 0 and 
-        SURFACES_HEADER_SIZE[He] > 0 and 
-        ITEMS_HEADER_SIZE[Wi] > 0 and 
-        ITEMS_HEADER_SIZE[He] > 0 
-        ): 
-            raise ValueError("Dimensions must be positive integers!")
+assert( (DEFAULT_TILE_SIZE > 0, DEFAULT_TILE_SIZE % 1 == 0,
+        DISPLAY_HEIGHT > 0, VISION_RANGE_SIZE[Wi] > 0,
+        SURFACES_HEADER_SIZE[Wi] > 0, SURFACES_HEADER_SIZE[He] > 0, 
+        ITEMS_HEADER_SIZE[Wi] > 0, ITEMS_HEADER_SIZE[He] > 0),
 
-if not (   
-        DISPLAY_HEIGHT % DEFAULT_TILE_SIZE == 0 and 
-        VISION_RANGE_SIZE[Wi] % DEFAULT_TILE_SIZE == 0 and 
-        SURFACES_HEADER_SIZE[Wi] % DEFAULT_TILE_SIZE == 0 and 
-        SURFACES_HEADER_SIZE[He] % DEFAULT_TILE_SIZE == 0 and 
-        ITEMS_HEADER_SIZE[Wi] % DEFAULT_TILE_SIZE == 0 and 
-        ITEMS_HEADER_SIZE[He] % DEFAULT_TILE_SIZE == 0 
-        ): 
-            raise ValueError("All dimensions must be multiples of " + 
-                            str(DEFAULT_TILE_SIZE) + ".")
+        "Dimensions must be positive integers!")
+
+assert( (DISPLAY_HEIGHT % DEFAULT_TILE_SIZE == 0,
+        VISION_RANGE_SIZE[Wi] % DEFAULT_TILE_SIZE == 0,
+        SURFACES_HEADER_SIZE[Wi] % DEFAULT_TILE_SIZE == 0,
+        SURFACES_HEADER_SIZE[He] % DEFAULT_TILE_SIZE == 0,
+        ITEMS_HEADER_SIZE[Wi] % DEFAULT_TILE_SIZE == 0,
+        ITEMS_HEADER_SIZE[He] % DEFAULT_TILE_SIZE == 0), 
+
+        "All dimensions must be multiples of " + str(DEFAULT_TILE_SIZE) + ".")
 
 
 loaded_surfaces= []
@@ -68,13 +61,13 @@ loaded_items= []
 
 #arrays of int values to indicate which sprite occupies a specific tile in a box
 loaded_surfaces_box_tiles= [0] * (
-                                    SURFACES_BOX_SIZE[Wi] / DEFAULT_TILE_SIZE * 
-                                    SURFACES_BOX_SIZE[He] / DEFAULT_TILE_SIZE)
+                                SURFACES_BOX_SIZE[Wi] / DEFAULT_TILE_SIZE * 
+                                SURFACES_BOX_SIZE[He] / DEFAULT_TILE_SIZE )
 
 loaded_items_box_tiles= [0] * (
-                                    ITEMS_BOX_SIZE[Wi] / DEFAULT_TILE_SIZE * 
-                                    ITEMS_BOX_SIZE[He] / DEFAULT_TILE_SIZE
-                                    )
+                                ITEMS_BOX_SIZE[Wi] / DEFAULT_TILE_SIZE * 
+                                ITEMS_BOX_SIZE[He] / DEFAULT_TILE_SIZE )
+
 highlighted_img= None
 vision_range= 0, 0
 editing_new_map= False
@@ -91,11 +84,11 @@ surfaces_rect= pygame.Rect(
                             )
 
 items_rect= pygame.Rect(
-                            VISION_RANGE_SIZE[Wi] + 2*DIV_LINE_THICKNESS + SURFACES_BOX_SIZE[Wi],
-                            ITEMS_HEADER_SIZE[He], 
-                            ITEMS_BOX_SIZE[Wi], 
-                            ITEMS_BOX_SIZE[He]
-                            )
+                        VISION_RANGE_SIZE[Wi] + 2*DIV_LINE_THICKNESS + SURFACES_BOX_SIZE[Wi],
+                        ITEMS_HEADER_SIZE[He], 
+                        ITEMS_BOX_SIZE[Wi], 
+                        ITEMS_BOX_SIZE[He]
+                        )
 
 header_rect= pygame.Rect (
                             VISION_RANGE_SIZE[Wi] + DIV_LINE_THICKNESS, 
